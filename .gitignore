@@ -1,2 +1,4 @@
 go.mod
 README.md
+.env
+.vscode

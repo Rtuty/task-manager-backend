@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"modules/internal/todoist"
 	"os"
 
 	"github.com/go-telegram/bot"
@@ -11,7 +12,7 @@ import (
 )
 
 func initBotToken() (string, error) {
-	token, exists := os.LookupEnv("BOTOKEN")
+	token, exists := os.LookupEnv("TOKENTGBOT")
 	if !exists {
 		return "", errors.New("bot token is not found")
 	}
@@ -47,9 +48,29 @@ func callbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 		CallbackQueryID: update.CallbackQuery.ID,
 		ShowAlert:       false,
 	})
+
+	client, err := todoist.NewClient()
+	if err != nil {
+		panic(err)
+	}
+
+	var result string
+	switch update.CallbackQuery.Data {
+	case "tasks":
+		r, err := todoist.GetTasks(client)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, v := range *r {
+			result = result + " " + v.Content
+		}
+	}
+
+	// client.GetActiveTasks()
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: update.CallbackQuery.Message.Chat.ID,
-		Text:   "Выбран пункт: " + update.CallbackQuery.Data,
+		Text:   result,
 	})
 
 }
@@ -58,14 +79,14 @@ func defaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	kb := &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
 			{
-				{Text: "Список задач", CallbackData: "tasks"},
+				{Text: "Button 1", CallbackData: "tasks"},
 			},
 		},
 	}
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      update.Message.Chat.ID,
-		Text:        "Привет, дружок, вот мой текущий функционал:",
+		Text:        "Click by button",
 		ReplyMarkup: kb,
 	})
 }

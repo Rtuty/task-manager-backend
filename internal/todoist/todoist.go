@@ -9,7 +9,7 @@ import (
 )
 
 func initTodoistToken() (string, error) {
-	token, exists := os.LookupEnv("TOKENTODOIST")
+	token, exists := os.LookupEnv("TODOIST")
 	if !exists {
 		return "", errors.New("todoist API token not found in .env")
 	}
