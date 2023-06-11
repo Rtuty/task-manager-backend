@@ -1,11 +1,8 @@
 package main
 
 import (
-	"context"
 	"log"
-	"modules/internal/bot"
-	"os"
-	"os/signal"
+	"modules/internal/db"
 
 	"github.com/joho/godotenv"
 )
@@ -17,8 +14,5 @@ func init() {
 }
 
 func main() {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
-
-	bot.StartBotInstance(ctx)
+	db.GetConnection()
 }
