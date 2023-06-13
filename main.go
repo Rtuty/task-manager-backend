@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+	"modules/internal/bot"
 	"modules/internal/db"
+	"modules/internal/todoist"
 
 	"github.com/joho/godotenv"
 )
@@ -14,5 +16,12 @@ func init() {
 }
 
 func main() {
-	db.GetConnection()
+	go db.GetConnection()
+
+	client, err := todoist.NewClient()
+	if err != nil {
+		panic(err)
+	}
+
+	bot.StartBot(client)
 }

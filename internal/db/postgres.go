@@ -36,7 +36,7 @@ func GetConnection() {
 
 var dbConStr string = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", PstgCon.Host, PstgCon.Port, PstgCon.User, PstgCon.Passwd, PstgCon.Dbname, PstgCon.Sslmode)
 
-func createTable() error {
+func CreateTable() error {
 	db, err := sql.Open("postgres", dbConStr)
 	if err != nil {
 		return err
@@ -60,7 +60,7 @@ func createTable() error {
 }
 
 // Данные по пользователям из бота записываем в БД
-func collectData(username string, chatid int64, message string, answer []string) error {
+func CollectData(username string, chatid int64, message string, answer []string) error {
 	db, err := sql.Open("postgres", dbConStr)
 	if err != nil {
 		return err
@@ -78,7 +78,7 @@ func collectData(username string, chatid int64, message string, answer []string)
 	return nil
 }
 
-func getNumberOfUsers() (int64, error) {
+func GetNumberOfUsers() (int64, error) {
 	var count int64
 
 	db, err := sql.Open("postgres", dbConStr)
