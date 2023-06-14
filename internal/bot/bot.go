@@ -14,7 +14,7 @@ import (
 )
 
 func StartBot(tdClient *todoist.Client) {
-	bot, err := tgbotapi.NewBotAPI(os.Getenv("BOTTOKEN"))
+	bot, err := tgbotapi.NewBotAPI(os.Getenv("TOKENTGBOT"))
 	if err != nil {
 		panic(err)
 	}
@@ -27,34 +27,22 @@ func StartBot(tdClient *todoist.Client) {
 		panic(err)
 	}
 
-	for update := range updates {
-		if update.Message == nil {
-			continue
-		}
+	// Создание канала для обработки callback'ов
+	callbackCh := make(chan tgbotapi.CallbackQuery)
 
-		// Если тип возвращаемого сообщения == text, начинаем проверку на компанды
-		if reflect.TypeOf(update.Message.Text).Kind() == reflect.String && update.Message.Text != "" {
-			switch update.Message.Text {
-			case "/start":
-				bot.Send(
-					tgbotapi.NewMessage(update.Message.Chat.ID, "Бот активирован и готов принимать Ваши поручения по менеджменту задач! :)"),
-				)
-			case "/number_of_users":
-				num, err := db.GetNumberOfUsers()
-				if err != nil {
-					bot.Send(
-						tgbotapi.NewMessage(update.Message.Chat.ID, "Ошибка базы данных. Обратитесь к администратору"),
-					)
-				}
+	// Регистрация обработчика callback'ов
+	go func() {
+		for callback := range callbackCh {
+			// Получение chatId и data из callback'а
+			chatId := callback.Message.Chat.ID
+			data := callback.Data
 
-				bot.Send(
-					tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("%d людей используют данного бота. Дата запроса: %s", num, time.Now().GoString())),
-				)
-			case "/tasks":
+			switch data {
+			case "tasks":
 				tasks, err := tdmod.GetTasks(tdClient)
 				if err != nil {
 					bot.Send(
-						tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("не удалось получить задачи из todoist, Ошибка: %s", err)),
+						tgbotapi.NewMessage(chatId, fmt.Sprintf("не удалось получить задачи из todoist, Ошибка: %s", err)),
 					)
 				}
 
@@ -65,9 +53,70 @@ func StartBot(tdClient *todoist.Client) {
 				}
 
 				bot.Send(
-					tgbotapi.NewMessage(update.Message.Chat.ID, msg),
+					tgbotapi.NewMessage(chatId, msg),
+				)
+			case "number_of_users":
+				num, err := db.GetNumberOfUsers()
+				if err != nil {
+					bot.Send(
+						tgbotapi.NewMessage(chatId, "Ошибка базы данных. Обратитесь к администратору"),
+					)
+				}
+
+				bot.Send(
+					tgbotapi.NewMessage(chatId, fmt.Sprintf("%d людей используют данного бота. Дата запроса: %s", num, time.Now().GoString())),
 				)
 			}
+		}
+	}()
+
+	for update := range updates {
+		// Обработка callback'ов
+		if update.CallbackQuery != nil {
+			callback := *update.CallbackQuery
+
+			// Отправка callback-ответа
+			callbackResponse := tgbotapi.NewCallback(callback.ID, callback.Data)
+			_, err := bot.AnswerCallbackQuery(callbackResponse)
+			if err != nil {
+				panic(err)
+			}
+
+			callbackCh <- callback
+		}
+		if update.Message == nil {
+			continue
+		}
+
+		// Если тип возвращаемого сообщения == text, начинаем проверку на компанды
+		if reflect.TypeOf(update.Message.Text).Kind() == reflect.String && update.Message.Text != "" {
+			var chatId int64 = update.Message.Chat.ID
+
+			switch update.Message.Text {
+			case "/start":
+				bot.Send(
+					tgbotapi.NewMessage(chatId, "Бот активирован и готов принимать Ваши поручения по менеджменту задач! :)"),
+				)
+
+				// Создание массива кнопок и добавление его в объект InlineKeyboardMarkup
+				keyboard := tgbotapi.NewInlineKeyboardMarkup(
+					[]tgbotapi.InlineKeyboardButton{
+						tgbotapi.NewInlineKeyboardButtonData("Список задач", "tasks"),
+						tgbotapi.NewInlineKeyboardButtonData("Получить пользователей бота", "number_of_users"),
+					},
+				)
+
+				// Создание сообщения с кнопками
+				msg := tgbotapi.NewMessage(chatId, "Выберите кнопку:")
+				msg.ReplyMarkup = keyboard
+
+				bot.Send(msg)
+			}
+		}
+
+		// Обработка callback'ов
+		if update.CallbackQuery != nil {
+			callbackCh <- *update.CallbackQuery
 		}
 	}
 }
