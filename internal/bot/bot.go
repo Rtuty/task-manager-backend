@@ -6,9 +6,11 @@ import (
 	tdmod "modules/internal/todoist"
 	"os"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/volyanyk/todoist"
+	tdist "github.com/volyanyk/todoist"
 
 	tgbotapi "github.com/Syfaro/telegram-bot-api"
 )
@@ -49,12 +51,47 @@ func StartBot(tdClient *todoist.Client) {
 				var msg string
 
 				for k, v := range *tasks {
-					msg = msg + fmt.Sprintf("№ %d \n %s \n ", k, v.Content) // TODO Настроить форматирование вывода задач
+					msg = msg + fmt.Sprintf("№ %d  %s \n", k+1, v.Content) // TODO Настроить форматирование вывода задач
 				}
 
 				bot.Send(
 					tgbotapi.NewMessage(chatId, msg),
 				)
+			case "create_task": // Отладить данный блок, задача не создается
+				bot.Send(
+					tgbotapi.NewMessage(chatId, "Введите наименование задачи и ее содержимое, разделив их запятой:"),
+				)
+
+				// Регистрация обработчика для ввода данных от пользователя
+				inputCh := make(chan tgbotapi.Message)
+				go func() {
+					for msg := range inputCh {
+						// Обработка введенных данных
+						taskData := strings.Split(msg.Text, ",")
+						taskContent := strings.TrimSpace(taskData[0])
+						taskDescription := strings.TrimSpace(taskData[1])
+
+						// Создание задачи в todoist
+						var req tdist.AddTaskRequest
+						req.Content = taskContent
+						req.Description = taskDescription
+						tdClient.AddTask(req)
+
+						bot.Send(
+							tgbotapi.NewMessage(chatId, "Задача успешно создана в todoist!"),
+						)
+
+					}
+				}()
+
+				// Регистрация обработчика callback'ов для ввода данных от пользователя
+				go func() {
+					for callback := range callbackCh {
+						if callback.Message.Chat.ID == chatId {
+							inputCh <- *callback.Message
+						}
+					}
+				}()
 			case "number_of_users":
 				num, err := db.GetNumberOfUsers()
 				if err != nil {
@@ -88,7 +125,7 @@ func StartBot(tdClient *todoist.Client) {
 			continue
 		}
 
-		// Если тип возвращаемого сообщения == text, начинаем проверку на компанды
+		// Если тип возвращаемого сообщения == text, начинаем проверку на команды
 		if reflect.TypeOf(update.Message.Text).Kind() == reflect.String && update.Message.Text != "" {
 			var chatId int64 = update.Message.Chat.ID
 
@@ -102,7 +139,8 @@ func StartBot(tdClient *todoist.Client) {
 				keyboard := tgbotapi.NewInlineKeyboardMarkup(
 					[]tgbotapi.InlineKeyboardButton{
 						tgbotapi.NewInlineKeyboardButtonData("Список задач", "tasks"),
-						tgbotapi.NewInlineKeyboardButtonData("Получить пользователей бота", "number_of_users"),
+						tgbotapi.NewInlineKeyboardButtonData("Новая задача", "create_task"),
+						tgbotapi.NewInlineKeyboardButtonData("Пользователи бота", "number_of_users"),
 					},
 				)
 
