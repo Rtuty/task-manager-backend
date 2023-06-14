@@ -1,13 +1,9 @@
 package bot
 
 import (
-	"fmt"
-	"modules/internal/db"
-	tdmod "modules/internal/todoist"
 	"os"
 	"reflect"
 	"strings"
-	"time"
 
 	"github.com/volyanyk/todoist"
 	tdist "github.com/volyanyk/todoist"
@@ -41,22 +37,7 @@ func StartBot(tdClient *todoist.Client) {
 
 			switch data {
 			case "tasks":
-				tasks, err := tdmod.GetTasks(tdClient)
-				if err != nil {
-					bot.Send(
-						tgbotapi.NewMessage(chatId, fmt.Sprintf("не удалось получить задачи из todoist, Ошибка: %s", err)),
-					)
-				}
-
-				var msg string
-
-				for k, v := range *tasks {
-					msg = msg + fmt.Sprintf("№ %d  %s \n", k+1, v.Content) // TODO Настроить форматирование вывода задач
-				}
-
-				bot.Send(
-					tgbotapi.NewMessage(chatId, msg),
-				)
+				go tasksList(tdClient, bot, chatId)
 			case "create_task": // Отладить данный блок, задача не создается
 				bot.Send(
 					tgbotapi.NewMessage(chatId, "Введите наименование задачи и ее содержимое, разделив их запятой:"),
@@ -93,16 +74,7 @@ func StartBot(tdClient *todoist.Client) {
 					}
 				}()
 			case "number_of_users":
-				num, err := db.GetNumberOfUsers()
-				if err != nil {
-					bot.Send(
-						tgbotapi.NewMessage(chatId, "Ошибка базы данных. Обратитесь к администратору"),
-					)
-				}
-
-				bot.Send(
-					tgbotapi.NewMessage(chatId, fmt.Sprintf("%d людей используют данного бота. Дата запроса: %s", num, time.Now().GoString())),
-				)
+				go numberOfUsers(bot, chatId)
 			}
 		}
 	}()
