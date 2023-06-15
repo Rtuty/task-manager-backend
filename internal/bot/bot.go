@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strings"
 
-	tdist "github.com/volyanyk/todoist"
 	tdmod "github.com/volyanyk/todoist"
 
 	tgbotapi "github.com/Syfaro/telegram-bot-api"
@@ -54,7 +53,7 @@ func StartBot(tdClient *tdmod.Client) {
 						taskDescription := strings.TrimSpace(taskData[1])
 
 						// Создание задачи в todoist
-						var req tdist.AddTaskRequest
+						var req tdmod.AddTaskRequest
 						req.Content = taskContent
 						req.Description = taskDescription
 						tdClient.AddTask(req)
@@ -73,6 +72,8 @@ func StartBot(tdClient *tdmod.Client) {
 						}
 					}
 				}()
+			case "projects": // Добавить обработку callback'a при нажатии на кнопку
+				go projectsList(tdClient, bot, chatId)
 			case "tools":
 				// Создание массива кнопок и добавление его в объект InlineKeyboardMarkup
 				buttons := tgbotapi.NewInlineKeyboardMarkup(
@@ -96,7 +97,7 @@ func StartBot(tdClient *tdmod.Client) {
 					bot.Send(tgbotapi.NewMessage(chatId, "Ошибка при получении"))
 				}
 				msg := tgbotapi.NewMessage(chatId, fmt.Sprintf(
-					"ID: %d \n Username: @%s \n Bot name: %s %s \n Language Code: %s",
+					"ID: %d \nUsername: @%s \nBot name: %s %s\n Language Code: %s",
 					tok.ID, tok.UserName, tok.FirstName, tok.LastName, tok.LanguageCode))
 
 				bot.Send(msg)
@@ -137,6 +138,7 @@ func StartBot(tdClient *tdmod.Client) {
 					[]tgbotapi.InlineKeyboardButton{
 						tgbotapi.NewInlineKeyboardButtonData("Список задач", "tasks"),
 						tgbotapi.NewInlineKeyboardButtonData("Новая задача", "create_task"), //todo
+						tgbotapi.NewInlineKeyboardButtonData("Проекты", "projects"),
 						tgbotapi.NewInlineKeyboardButtonData("Доп. функции", "tools"),
 					},
 				)
