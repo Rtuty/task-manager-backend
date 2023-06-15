@@ -1,17 +1,18 @@
 package bot
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
 
-	"github.com/volyanyk/todoist"
 	tdist "github.com/volyanyk/todoist"
+	tdmod "github.com/volyanyk/todoist"
 
 	tgbotapi "github.com/Syfaro/telegram-bot-api"
 )
 
-func StartBot(tdClient *todoist.Client) {
+func StartBot(tdClient *tdmod.Client) {
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("TOKENTGBOT"))
 	if err != nil {
 		panic(err)
@@ -64,7 +65,6 @@ func StartBot(tdClient *todoist.Client) {
 
 					}
 				}()
-
 				// Регистрация обработчика callback'ов для ввода данных от пользователя
 				go func() {
 					for callback := range callbackCh {
@@ -73,8 +73,33 @@ func StartBot(tdClient *todoist.Client) {
 						}
 					}
 				}()
+			case "tools":
+				// Создание массива кнопок и добавление его в объект InlineKeyboardMarkup
+				buttons := tgbotapi.NewInlineKeyboardMarkup(
+					[]tgbotapi.InlineKeyboardButton{
+						tgbotapi.NewInlineKeyboardButtonData("Пользователи бота", "number_of_users"),
+						tgbotapi.NewInlineKeyboardButtonData("bot info", "bot_info"),
+					},
+				)
+
+				// Создание сообщения с кнопками
+				msg := tgbotapi.NewMessage(chatId, "Дополнительные функции:")
+				msg.ReplyMarkup = buttons
+
+				bot.Send(msg)
 			case "number_of_users":
 				go numberOfUsers(bot, chatId)
+			// Информация по боту. Добавить проверку на пароль, чтобы доступ был только у админа
+			case "bot_info":
+				tok, err := bot.GetMe()
+				if err != nil {
+					bot.Send(tgbotapi.NewMessage(chatId, "Ошибка при получении"))
+				}
+				msg := tgbotapi.NewMessage(chatId, fmt.Sprintf(
+					"ID: %d \n Username: @%s \n Bot name: %s %s \n Language Code: %s",
+					tok.ID, tok.UserName, tok.FirstName, tok.LastName, tok.LanguageCode))
+
+				bot.Send(msg)
 			}
 		}
 	}()
@@ -111,8 +136,8 @@ func StartBot(tdClient *todoist.Client) {
 				keyboard := tgbotapi.NewInlineKeyboardMarkup(
 					[]tgbotapi.InlineKeyboardButton{
 						tgbotapi.NewInlineKeyboardButtonData("Список задач", "tasks"),
-						tgbotapi.NewInlineKeyboardButtonData("Новая задача", "create_task"),
-						tgbotapi.NewInlineKeyboardButtonData("Пользователи бота", "number_of_users"),
+						tgbotapi.NewInlineKeyboardButtonData("Новая задача", "create_task"), //todo
+						tgbotapi.NewInlineKeyboardButtonData("Доп. функции", "tools"),
 					},
 				)
 
