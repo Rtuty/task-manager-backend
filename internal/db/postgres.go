@@ -25,24 +25,29 @@ func GetConnection() {
 		} else {
 			field := reflect.ValueOf(res).Elem().FieldByNameFunc(
 				func(fieldName string) bool {
-					return strings.ToLower(fieldName) == strings.ToLower(v)
+					return strings.EqualFold(fieldName, v)
 				})
 			if field.IsValid() {
 				field.SetString(value)
 			}
 		}
 	}
+	fmt.Println(PstgCon)
 }
 
 var dbConStr string = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", PstgCon.Host, PstgCon.Port, PstgCon.User, PstgCon.Passwd, PstgCon.Dbname, PstgCon.Sslmode)
 
-func CreateTable() error {
+func NewDbClient() (*sql.DB, error) {
 	db, err := sql.Open("postgres", dbConStr)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	defer db.Close()
+	return db, nil
+}
+
+func CreateTable(db *sql.DB) error {
+	var err error
 
 	//Создаем таблицу users
 	if _, err = db.Exec(`
@@ -60,14 +65,7 @@ func CreateTable() error {
 }
 
 // Данные по пользователям из бота записываем в БД
-func CollectData(username string, chatid int64, message string, answer []string) error {
-	db, err := sql.Open("postgres", dbConStr)
-	if err != nil {
-		return err
-	}
-
-	defer db.Close()
-
+func CollectData(db *sql.DB, username string, chatid int64, message string, answer []string) error {
 	answ := strings.Join(answer, ", ")
 	data := `INSERT INTO users(username, chatid, message, answer) values ($1, $2, $3, $4)`
 
@@ -78,14 +76,9 @@ func CollectData(username string, chatid int64, message string, answer []string)
 	return nil
 }
 
-func GetNumberOfUsers() (int64, error) {
+func GetNumberOfUsers(db *sql.DB) (int64, error) {
 	var count int64
-
-	db, err := sql.Open("postgres", dbConStr)
-	if err != nil {
-		return 0, err
-	}
-	defer db.Close()
+	var err error
 
 	//Отправляем запрос в БД для подсчета числа уникальных пользователей
 	row := db.QueryRow("SELECT COUNT(DISTINCT username) FROM users;")
